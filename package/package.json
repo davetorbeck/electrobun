@@ -12,10 +12,20 @@
 		"typescript"
 	],
 	"exports": {
-		".": "./dist/api/bun/index.ts",
-		"./bun": "./dist/api/bun/index.ts",
-		"./view": "./dist/api/browser/index.ts"
+		".": {
+			"types": "./dist/api/bun/index.d.ts",
+			"default": "./dist/api/bun/index.ts"
+		},
+		"./bun": {
+			"types": "./dist/api/bun/index.d.ts",
+			"default": "./dist/api/bun/index.ts"
+		},
+		"./view": {
+			"types": "./dist/api/browser/index.d.ts",
+			"default": "./dist/api/browser/index.ts"
+		}
 	},
+	"types": "./dist/api/bun/index.d.ts",
 	"type": "module",
 	"bin": {
 		"electrobun": "./bin/electrobun.cjs"
