@@ -3,10 +3,22 @@ import electrobunEventEmitter from "../events/eventEmitter";
 import ElectrobunEvent from "../events/event";
 import { BrowserView } from "../core/BrowserView";
 import { Tray } from "../core/Tray";
-import {
-	preloadScript,
-	preloadScriptSandboxed,
-} from "../preload/.generated/compiled";
+
+let preloadScript = "";
+let preloadScriptSandboxed = "";
+
+try {
+	// Generated during Electrobun build. Using require in a try/catch keeps source
+	// checkouts usable even before running the preload build step.
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const generatedPreload = require("../preload/.generated/compiled");
+	preloadScript = generatedPreload.preloadScript ?? "";
+	preloadScriptSandboxed = generatedPreload.preloadScriptSandboxed ?? "";
+} catch {
+	console.warn(
+		"[electrobun] preload .generated/compiled is missing; webview preload scripts will be empty until generated.",
+	);
+}
 
 // Menu data reference system to avoid serialization overhead
 const menuDataRegistry = new Map<string, any>();

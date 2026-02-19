@@ -4,7 +4,7 @@ import {
 	renameSync,
 	unlinkSync,
 	mkdirSync,
-	rmdirSync,
+	rmSync,
 	statSync,
 	readdirSync,
 } from "fs";
@@ -143,12 +143,12 @@ function cleanupExtractionFolder(
 			if (entry === keepFile) continue;
 			const fullPath = join(extractionFolder, entry);
 			try {
-				const s = statSync(fullPath);
-				if (s.isDirectory()) {
-					rmdirSync(fullPath, { recursive: true });
-				} else {
-					unlinkSync(fullPath);
-				}
+					const s = statSync(fullPath);
+					if (s.isDirectory()) {
+						rmSync(fullPath, { recursive: true, force: true });
+					} else {
+						unlinkSync(fullPath);
+					}
 			} catch (e) {
 				// Best effort — file may be in use on Windows
 			}
@@ -892,11 +892,11 @@ const Updater = {
 				try {
 					emitStatus("replacing-app", "Removing old version...");
 
-					if (currentOS === "macos") {
-						// Remove existing app before installing the new one
-						if (statSync(runningAppBundlePath, { throwIfNoEntry: false })) {
-							rmdirSync(runningAppBundlePath, { recursive: true });
-						}
+						if (currentOS === "macos") {
+							// Remove existing app before installing the new one
+							if (statSync(runningAppBundlePath, { throwIfNoEntry: false })) {
+								rmSync(runningAppBundlePath, { recursive: true, force: true });
+							}
 
 						emitStatus("replacing-app", "Installing new version...");
 						// Move new app to running location
@@ -918,10 +918,10 @@ const Updater = {
 						// The app is stored in {appDataFolder}/app/
 						const appBundleDir = join(appDataFolder, "app");
 						
-						// Remove existing app directory if it exists
-						if (statSync(appBundleDir, { throwIfNoEntry: false })) {
-							rmdirSync(appBundleDir, { recursive: true });
-						}
+							// Remove existing app directory if it exists
+							if (statSync(appBundleDir, { throwIfNoEntry: false })) {
+								rmSync(appBundleDir, { recursive: true, force: true });
+							}
 
 						// Move new app bundle directory to app location
 						renameSync(newAppBundlePath, appBundleDir);
