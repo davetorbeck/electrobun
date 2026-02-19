@@ -1642,8 +1642,15 @@ export type StorageType =
 	| "cache"
 	| "all";
 
+export interface SessionCookiesApi {
+	get(filter?: CookieFilter): Cookie[];
+	set(cookie: Cookie): boolean;
+	remove(url: string, name: string): boolean;
+	clear(): void;
+}
+
 // Cookies API for a session
-class SessionCookies {
+class SessionCookies implements SessionCookiesApi {
 	private partitionId: string;
 
 	constructor(partitionId: string) {
@@ -1707,7 +1714,7 @@ class SessionCookies {
 // Session class representing a storage partition
 class SessionInstance {
 	readonly partition: string;
-	readonly cookies: SessionCookies;
+	readonly cookies: SessionCookiesApi;
 
 	constructor(partition: string) {
 		this.partition = partition;

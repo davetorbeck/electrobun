@@ -1,0 +1,13 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"declarationMap": false,
+		"rootDir": "./src",
+		"outDir": "./dist/api"
+	},
+	"include": ["src/bun/**/*", "src/browser/**/*", "src/shared/**/*"],
+	"exclude": ["node_modules", "dist", "vendors", "build"]
+}
