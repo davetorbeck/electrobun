@@ -9264,6 +9264,19 @@ ELECTROBUN_EXPORT void setURLOpenHandler(void (*callback)(const char*)) {
     // Linux URL protocol handling is done via desktop file associations
 }
 
+// Accessibility APIs are macOS-only. These stubs keep FFI symbol parity.
+ELECTROBUN_EXPORT bool checkAccessibilityPermission() {
+    return false;
+}
+
+ELECTROBUN_EXPORT bool requestAccessibilityPermission() {
+    return false;
+}
+
+ELECTROBUN_EXPORT const char* getSelectedTextViaAccessibility() {
+    return nullptr;
+}
+
 // Graceful shutdown function to coordinate cleanup
 ELECTROBUN_EXPORT void shutdownNativeWrapper() {
     printf("Starting graceful shutdown of native wrapper...\n");

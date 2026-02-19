@@ -463,6 +463,20 @@ export const native = (() => {
 				returns: FFIType.cstring,
 			},
 
+			// Accessibility API (macOS; stubs on other platforms)
+			checkAccessibilityPermission: {
+				args: [],
+				returns: FFIType.bool,
+			},
+			requestAccessibilityPermission: {
+				args: [],
+				returns: FFIType.bool,
+			},
+			getSelectedTextViaAccessibility: {
+				args: [],
+				returns: FFIType.cstring,
+			},
+
 			// Session/Cookie API
 			sessionGetCookies: {
 				args: [FFIType.cstring, FFIType.cstring],
@@ -1609,6 +1623,38 @@ export const Screen = {
 		} catch {
 			return { x: 0, y: 0 };
 		}
+	},
+};
+
+// Accessibility module for macOS AX permission + selected-text capture
+export const Accessibility = {
+	/**
+	 * Check whether the current app process is trusted for Accessibility APIs.
+	 */
+	isTrusted: (): boolean => {
+		if (process.platform !== "darwin") return false;
+		return native.symbols.checkAccessibilityPermission();
+	},
+
+	/**
+	 * Request Accessibility permission prompt (System Settings) for this process.
+	 * Returns current trust status after the prompt request.
+	 */
+	requestPermission: (): boolean => {
+		if (process.platform !== "darwin") return false;
+		return native.symbols.requestAccessibilityPermission();
+	},
+
+	/**
+	 * Read selected text from the focused UI element via macOS Accessibility APIs.
+	 * Returns null when unavailable.
+	 */
+	getSelectedText: (): string | null => {
+		if (process.platform !== "darwin") return null;
+		const selectedText = native.symbols.getSelectedTextViaAccessibility();
+		if (!selectedText) return null;
+		const text = selectedText.toString();
+		return text.length > 0 ? text : null;
 	},
 };
 
