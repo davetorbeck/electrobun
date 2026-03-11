@@ -26,7 +26,7 @@ import type ElectrobunEvent from "./events/event";
 import * as PATHS from "./core/Paths";
 import * as Socket from "./core/Socket";
 import type { ElectrobunConfig } from "./ElectrobunConfig";
-import { GlobalShortcut, Screen, Session } from "./proc/native";
+import { Accessibility, GlobalShortcut, Screen, Session } from "./proc/native";
 import type {
 	Display,
 	Rectangle,
@@ -75,6 +75,7 @@ export {
 	PATHS,
 	Socket,
 	GlobalShortcut,
+	Accessibility,
 	Screen,
 	Session,
 	BuildConfig,
@@ -90,6 +91,7 @@ const Electrobun = {
 	ApplicationMenu,
 	ContextMenu,
 	GlobalShortcut,
+	Accessibility,
 	Screen,
 	Session,
 	BuildConfig,

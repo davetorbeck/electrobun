@@ -3,10 +3,22 @@ import electrobunEventEmitter from "../events/eventEmitter";
 import ElectrobunEvent from "../events/event";
 import { BrowserView } from "../core/BrowserView";
 import { Tray } from "../core/Tray";
-import {
-	preloadScript,
-	preloadScriptSandboxed,
-} from "../preload/.generated/compiled";
+
+let preloadScript = "";
+let preloadScriptSandboxed = "";
+
+try {
+	// Generated during Electrobun build. Using require in a try/catch keeps source
+	// checkouts usable even before running the preload build step.
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const generatedPreload = require("../preload/.generated/compiled");
+	preloadScript = generatedPreload.preloadScript ?? "";
+	preloadScriptSandboxed = generatedPreload.preloadScriptSandboxed ?? "";
+} catch {
+	console.warn(
+		"[electrobun] preload .generated/compiled is missing; webview preload scripts will be empty until generated.",
+	);
+}
 
 // Menu data reference system to avoid serialization overhead
 const menuDataRegistry = new Map<string, any>();
@@ -459,6 +471,20 @@ export const native = (() => {
 				returns: FFIType.void,
 			},
 			clipboardAvailableFormats: {
+				args: [],
+				returns: FFIType.cstring,
+			},
+
+			// Accessibility API (macOS; stubs on other platforms)
+			checkAccessibilityPermission: {
+				args: [],
+				returns: FFIType.bool,
+			},
+			requestAccessibilityPermission: {
+				args: [],
+				returns: FFIType.bool,
+			},
+			getSelectedTextViaAccessibility: {
 				args: [],
 				returns: FFIType.cstring,
 			},
@@ -1612,6 +1638,38 @@ export const Screen = {
 	},
 };
 
+// Accessibility module for macOS AX permission + selected-text capture
+export const Accessibility = {
+	/**
+	 * Check whether the current app process is trusted for Accessibility APIs.
+	 */
+	isTrusted: (): boolean => {
+		if (process.platform !== "darwin") return false;
+		return native.symbols.checkAccessibilityPermission();
+	},
+
+	/**
+	 * Request Accessibility permission prompt (System Settings) for this process.
+	 * Returns current trust status after the prompt request.
+	 */
+	requestPermission: (): boolean => {
+		if (process.platform !== "darwin") return false;
+		return native.symbols.requestAccessibilityPermission();
+	},
+
+	/**
+	 * Read selected text from the focused UI element via macOS Accessibility APIs.
+	 * Returns null when unavailable.
+	 */
+	getSelectedText: (): string | null => {
+		if (process.platform !== "darwin") return null;
+		const selectedText = native.symbols.getSelectedTextViaAccessibility();
+		if (!selectedText) return null;
+		const text = selectedText.toString();
+		return text.length > 0 ? text : null;
+	},
+};
+
 // Types for Session/Cookie API
 export interface Cookie {
 	name: string;
@@ -1642,8 +1700,15 @@ export type StorageType =
 	| "cache"
 	| "all";
 
+export interface SessionCookiesApi {
+	get(filter?: CookieFilter): Cookie[];
+	set(cookie: Cookie): boolean;
+	remove(url: string, name: string): boolean;
+	clear(): void;
+}
+
 // Cookies API for a session
-class SessionCookies {
+class SessionCookies implements SessionCookiesApi {
 	private partitionId: string;
 
 	constructor(partitionId: string) {
@@ -1707,7 +1772,7 @@ class SessionCookies {
 // Session class representing a storage partition
 class SessionInstance {
 	readonly partition: string;
-	readonly cookies: SessionCookies;
+	readonly cookies: SessionCookiesApi;
 
 	constructor(partition: string) {
 		this.partition = partition;

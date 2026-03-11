@@ -525,6 +525,15 @@ async function copyApiFiles() {
 		await $`cp -R src/browser dist/api/`;
 		await $`cp -R src/shared dist/api/`;
 	}
+
+	// Emit declaration files so external TS tooling resolves package types
+	// without type-checking Electrobun's internal .ts sources.
+	await emitApiDeclarations();
+}
+
+async function emitApiDeclarations() {
+	console.log("Generating API declaration files...");
+	await $`bunx tsc --project tsconfig.types.json --noCheck`;
 }
 
 async function copyToDist() {

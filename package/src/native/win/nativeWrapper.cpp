@@ -10009,6 +10009,19 @@ extern "C" ELECTROBUN_EXPORT void setURLOpenHandler(void (*callback)(const char*
     // Windows URL protocol handling is done via registry
 }
 
+// Accessibility APIs are macOS-only. These stubs keep FFI symbol parity.
+extern "C" ELECTROBUN_EXPORT bool checkAccessibilityPermission() {
+    return false;
+}
+
+extern "C" ELECTROBUN_EXPORT bool requestAccessibilityPermission() {
+    return false;
+}
+
+extern "C" ELECTROBUN_EXPORT const char* getSelectedTextViaAccessibility() {
+    return nullptr;
+}
+
 // Window icon - Linux only, no-op for Windows
 extern "C" ELECTROBUN_EXPORT void setWindowIcon(void* window, const char* iconPath) {
     // Not yet implemented on Windows

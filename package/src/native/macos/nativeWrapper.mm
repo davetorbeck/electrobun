@@ -11,6 +11,7 @@
 #import <CommonCrypto/CommonCrypto.h>
 #import <QuartzCore/QuartzCore.h>
 #import <UserNotifications/UserNotifications.h>
+#import <ApplicationServices/ApplicationServices.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
@@ -6247,6 +6248,151 @@ extern "C" int showMessageBox(const char *type,
         // NSAlertFirstButtonReturn = 1000, NSAlertSecondButtonReturn = 1001, etc.
         result = (int)(response - NSAlertFirstButtonReturn);
     });
+
+    return result;
+}
+
+// ============================================================================
+// Accessibility API (macOS)
+// ============================================================================
+
+static NSString* copyAXStringAttribute(AXUIElementRef element, CFStringRef attribute) {
+    if (!element || !attribute) {
+        return nil;
+    }
+
+    CFTypeRef value = nullptr;
+    AXError err = AXUIElementCopyAttributeValue(element, attribute, &value);
+    if (err != kAXErrorSuccess || !value) {
+        return nil;
+    }
+
+    NSString* result = nil;
+    if (CFGetTypeID(value) == CFStringGetTypeID()) {
+        result = [(__bridge NSString*)value copy];
+    }
+
+    CFRelease(value);
+    return result;
+}
+
+// checkAccessibilityPermission - Check whether this process has Accessibility trust
+extern "C" bool checkAccessibilityPermission() {
+    __block bool trusted = false;
+    void (^checkPermission)(void) = ^{
+        trusted = AXIsProcessTrusted();
+    };
+
+    if ([NSThread isMainThread]) {
+        checkPermission();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), checkPermission);
+    }
+
+    return trusted;
+}
+
+// requestAccessibilityPermission - Trigger macOS Accessibility permission prompt if needed
+extern "C" bool requestAccessibilityPermission() {
+    __block bool trusted = false;
+    void (^requestPermission)(void) = ^{
+        NSDictionary* options = @{ (__bridge id)kAXTrustedCheckOptionPrompt : @YES };
+        trusted = AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)options);
+    };
+
+    if ([NSThread isMainThread]) {
+        requestPermission();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), requestPermission);
+    }
+
+    return trusted;
+}
+
+// getSelectedTextViaAccessibility - Read selected text from the focused UI element via AX APIs
+// Returns UTF-8 string (caller must free) or NULL when unavailable.
+extern "C" const char* getSelectedTextViaAccessibility() {
+    __block const char* result = NULL;
+    void (^readSelectedText)(void) = ^{
+        @autoreleasepool {
+            AXUIElementRef systemWide = AXUIElementCreateSystemWide();
+            if (!systemWide) {
+                return;
+            }
+
+            CFTypeRef focusedElementRef = nullptr;
+            AXError focusedErr = AXUIElementCopyAttributeValue(
+                systemWide,
+                kAXFocusedUIElementAttribute,
+                &focusedElementRef
+            );
+
+            if (focusedErr != kAXErrorSuccess || !focusedElementRef) {
+                CFRelease(systemWide);
+                return;
+            }
+
+            if (CFGetTypeID(focusedElementRef) != AXUIElementGetTypeID()) {
+                CFRelease(focusedElementRef);
+                CFRelease(systemWide);
+                return;
+            }
+
+            AXUIElementRef focusedElement = (AXUIElementRef)focusedElementRef;
+            NSString* selectedText = copyAXStringAttribute(focusedElement, kAXSelectedTextAttribute);
+
+            // Fallback: for some apps kAXSelectedText is empty, but selected range is present.
+            if (!selectedText || selectedText.length == 0) {
+                CFTypeRef selectedRangesRef = nullptr;
+                AXError rangeErr = AXUIElementCopyAttributeValue(
+                    focusedElement,
+                    kAXSelectedTextRangesAttribute,
+                    &selectedRangesRef
+                );
+
+                if (rangeErr == kAXErrorSuccess && selectedRangesRef &&
+                    CFGetTypeID(selectedRangesRef) == CFArrayGetTypeID()) {
+                    CFArrayRef selectedRanges = (CFArrayRef)selectedRangesRef;
+                    if (CFArrayGetCount(selectedRanges) > 0) {
+                        CFTypeRef firstRange = CFArrayGetValueAtIndex(selectedRanges, 0);
+                        if (firstRange) {
+                            CFTypeRef textForRangeRef = nullptr;
+                            AXError textErr = AXUIElementCopyParameterizedAttributeValue(
+                                focusedElement,
+                                kAXStringForRangeParameterizedAttribute,
+                                firstRange,
+                                &textForRangeRef
+                            );
+                            if (textErr == kAXErrorSuccess && textForRangeRef &&
+                                CFGetTypeID(textForRangeRef) == CFStringGetTypeID()) {
+                                selectedText = [(__bridge NSString*)textForRangeRef copy];
+                            }
+                            if (textForRangeRef) {
+                                CFRelease(textForRangeRef);
+                            }
+                        }
+                    }
+                }
+
+                if (selectedRangesRef) {
+                    CFRelease(selectedRangesRef);
+                }
+            }
+
+            if (selectedText && selectedText.length > 0) {
+                result = strdup([selectedText UTF8String]);
+            }
+
+            CFRelease(focusedElementRef);
+            CFRelease(systemWide);
+        }
+    };
+
+    if ([NSThread isMainThread]) {
+        readSelectedText();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), readSelectedText);
+    }
 
     return result;
 }
